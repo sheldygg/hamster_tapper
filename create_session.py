@@ -10,7 +10,7 @@ async def main():
 
     session_name = input("Enter session name: ")
     client = TelegramClient(
-        session=f"sessions/{session_name}",
+        session=session_name,
         api_id=settings.api_id,
         api_hash=settings.api_hash,
     )
