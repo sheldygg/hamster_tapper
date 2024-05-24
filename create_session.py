@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from telethon import TelegramClient
 
@@ -15,6 +16,9 @@ async def main():
         api_hash=settings.api_hash,
     )
     await client.start()
+    await client.disconnect()
+
+    os.replace(f"{session_name}.session", f"./sessions/{session_name}.session")
 
 
 asyncio.run(main())
