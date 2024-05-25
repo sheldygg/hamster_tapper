@@ -181,15 +181,21 @@ class Clicker:
                 self.logger.info("Sleep 5 seconds before upgrade... upgrade_id=%s", upgrade["id"])
                 await asyncio.sleep(5)
                 self.logger.info(
-                    "Upgrade upgrade_id=%s, balance=%s, price=%s",
+                    "Upgrade upgrade_id=%s, balance=%s, price=%s, profit_delta=%s",
                     upgrade["id"],
                     self._balance,
-                    upgrade["price"]
+                    upgrade["price"],
+                    upgrade["profitPerHourDelta"],
                 )
                 response = await self.buy_upgrade(upgrade["id"])
 
                 if clicker_user := response.get("clickerUser"):
-                    self.logger.info("Upgraded updrade_id=%s, balance=%s", upgrade["id"], clicker_user["balanceCoins"])
+                    self.logger.info(
+                        "Upgraded updrade_id=%s, balance=%s, profit_delta=%s",
+                        upgrade["id"],
+                        clicker_user["balanceCoins"],
+                        upgrade["profitPerHourDelta"],
+                    )
                     self._balance = clicker_user["balanceCoins"]
 
                 else:
