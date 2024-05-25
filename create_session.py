@@ -34,6 +34,8 @@ async def main():
         password = input("Enter 2FA password: ")
         await client.sign_in(phone=phone, password=password)
 
+    await client.disconnect()
+
     print("Session created successfully")
 
     os.replace(f"{session_name}.session", f"./sessions/{session_name}.session")
