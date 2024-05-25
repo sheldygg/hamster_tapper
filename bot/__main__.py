@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 
 from pathlib import Path
 
@@ -68,6 +69,8 @@ async def create_clicker_instances(
 
 
 async def main():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+
     aiohttp_session = ClientSession()
 
     with open("access_hashes.json", "r") as access_hashes_file:

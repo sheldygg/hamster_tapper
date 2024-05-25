@@ -1,8 +1,8 @@
 import json
 import time
-import structlog
 import random
 import asyncio
+import logging
 
 from urllib.parse import unquote, urljoin
 from http import HTTPMethod
@@ -13,8 +13,6 @@ from telethon.tl.types import InputUser, InputPeerUser, User
 from telethon.tl.functions.messages import RequestWebViewRequest
 
 from .settings import Settings, BOT_ID
-
-logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
 def full_name(user: User) -> str:
@@ -60,7 +58,7 @@ class Clicker:
         self._balance: float = 0.0
         self._available_taps: int = 0
 
-        self.logger = logger.bind(name=full_name(user))
+        self.logger = logging.getLogger(full_name(user))
 
     async def set_web_data(self) -> None:
         response = await self.client(
@@ -180,17 +178,22 @@ class Clicker:
         for upgrade in self._upgrades_for_buy:
             if self._balance >= upgrade["price"]:
 
-                self.logger.info("Sleep 5 seconds before upgrade...", upgrade_id=upgrade["id"])
+                self.logger.info("Sleep 5 seconds before upgrade... upgrade_id=%s", upgrade["id"])
                 await asyncio.sleep(5)
-                self.logger.info("Upgrade", upgrade_id=upgrade["id"], balance=self._balance, price=upgrade["price"])
+                self.logger.info(
+                    "Upgrade upgrade_id=%s, balance=%s, price=%s",
+                    upgrade["id"],
+                    self._balance,
+                    upgrade["price"]
+                )
                 response = await self.buy_upgrade(upgrade["id"])
 
                 if clicker_user := response.get("clickerUser"):
-                    self.logger.info("Upgraded", upgrade_id=upgrade["id"], balance=clicker_user["balanceCoins"])
+                    self.logger.info("Upgraded updrade_id=%s, balance=%s", upgrade["id"], clicker_user["balanceCoins"])
                     self._balance = clicker_user["balanceCoins"]
 
                 else:
-                    self.logger.info("Failed to upgrade", upgrade_id=upgrade["id"], response=response)
+                    self.logger.info("Failed to upgrade, upgrade_id=%s, response=%s", upgrade["id"], response)
 
                 if upgrade_for_buy := response.get("upgradesForBuy"):
                     self._set_upgrades_for_buy(upgrade_for_buy)  # update upgrades_for_buy cycle
@@ -202,9 +205,9 @@ class Clicker:
         sync = await self.sync()
 
         self.logger.info(
-            "Synced",
-            last_passive_earn=sync["lastPassiveEarn"],
-            earn_passive_per_hour=sync["earnPassivePerHour"],
+            "Synced, last_passive_earn=%s, earn_passive_per_hour=%s",
+            sync["lastPassiveEarn"],
+            sync["earnPassivePerHour"],
         )
         self._available_taps = sync["availableTaps"]
         self._balance = sync["balanceCoins"]
@@ -216,9 +219,9 @@ class Clicker:
                     sync = await self.sync()
 
                     self.logger.info(
-                        "Synced",
-                        last_passive_earn=sync["lastPassiveEarn"],
-                        earn_passive_per_hour=sync["earnPassivePerHour"],
+                        "Synced, last_passive_earn=%s, earn_passive_per_hour=%s",
+                        sync["lastPassiveEarn"],
+                        sync["earnPassivePerHour"],
                     )
                     self._available_taps = sync["availableTaps"]
                     self._balance = sync["balanceCoins"]
@@ -233,21 +236,21 @@ class Clicker:
                 profit = tap_response["balanceCoins"] - self._balance
                 self._balance = tap_response["balanceCoins"]
 
-                self.logger.info("Tapped", taps=taps, profit=profit, balance=self._balance)
+                self.logger.info("Tapped, taps=%s, profit=%s, balance=%s", taps, profit, self._balance)
 
                 if self.settings.auto_upgrade:
                     await self._find_and_upgrade()
 
                 if available_taps < self.settings.min_energy:
                     sleep_time = sync["maxTaps"] / sync["tapsRecoverPerSec"]
-                    self.logger.info("Minimum available taps reached", available_taps=available_taps, sleep=sleep_time)
+                    self.logger.info("Minimum available taps reached, available_taps=%s, sleep=%s", available_taps, sleep_time)
                     await asyncio.sleep(sleep_time)
 
                     continue
 
                 sleep_time = random.randint(self.settings.min_sleep_time, self.settings.max_sleep_time)
 
-                self.logger.info("Sleeping...", sleep=sleep_time)
+                self.logger.info("Sleeping... sleep_time=%s", sleep_time)
                 await asyncio.sleep(sleep_time)
             except Exception as e:
-                self.logger.error("Get error while clicking", error=e)
+                self.logger.error("Get error while clicking, error=%s", e)
