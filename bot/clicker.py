@@ -204,6 +204,17 @@ class Clicker:
                 if upgrade_for_buy := response.get("upgradesForBuy"):
                     self._set_upgrades_for_buy(upgrade_for_buy)  # update upgrades_for_buy cycle
 
+            else:
+                if self.settings.sleep_for_profitable:
+                    self.logger.info(
+                        "Not enough balance to upgrade most profitable, balance=%s, upgrade_id=%s, price=%s, profit_delta=%s",
+                        self._balance,
+                        upgrade["id"],
+                        upgrade["price"],
+                        upgrade["profitPerHourDelta"],
+                    )
+                    break
+
     async def start(self) -> None:
         self.logger.info("Starting clicker...")
 

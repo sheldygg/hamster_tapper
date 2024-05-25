@@ -16,12 +16,14 @@ Upgrading
 
 ### Parameters
 
-- api_id: int `Your api_id crendetial`
-- api_hash: str `Your api_hash crendetial`
-- auto_upgrade: bool `Enable auto upgrade, by default True`
-
-- min_energy: int `Minimum energy after which the bot falls asleep for a while until the energy is fully restored, by default 90`
-- min_taps: int `Minimum number of taps, by default 50`
-- max_taps: int `Maximum number of taps, by default 200`
-- min_sleep_time: int `Minimum sleep time after taps, by default 10`
-- max_sleep_time: int `Maximum sleep time after taps, by default 25`
+| Name                 | type | description                                                                                    | default |
+|----------------------|------|------------------------------------------------------------------------------------------------|---------|
+| api_id               | int  | Your api_id crendetial                                                                         | -       |
+| api_hash             | str  | Your api_hash crendetial                                                                       | -       |
+| auto_upgrade         | bool | Enable auto upgrade                                                                            | True    |
+| sleep_for_profitable | bool | Sleep if not enought energy for the most profitable upgrade                                    | True    |
+| min_energy           | int  | Minimum energy after which the bot falls asleep for a while until the energy is fully restored | 90      |
+| min_taps             | int  | Minimum number of taps                                                                         | 50      |
+| max_taps             | int  | Maximum number of taps                                                                         | 200     |
+| min_sleep_time       | int  | Minimum sleep time after taps                                                                  | 10      |
+| max_sleep_time       | int  | Maximum sleep time after taps                                                                  | 25      |

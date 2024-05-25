@@ -9,6 +9,7 @@ class Settings:
     api_id: int
     api_hash: str
     auto_upgrade: bool = True
+    sleep_for_profitable: bool = True
 
     min_energy: int = 90
     min_taps: int = 50
@@ -27,5 +28,6 @@ def read_settings() -> Settings:
             api_id=int(settings_data["api_id"]),
             api_hash=settings_data["api_hash"],
             auto_upgrade=bool(settings_data.get("auto_upgrade", True)),
+            sleep_for_profitable=bool(settings_data.get("sleep_for_profitable", True)),
             min_energy=settings_data.get("min_energy", 90),
         )
