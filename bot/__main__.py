@@ -1,16 +1,15 @@
 import asyncio
 import json
 import logging
-
 from pathlib import Path
 
 from aiohttp import ClientSession
 from telethon import TelegramClient
-from telethon.errors.rpcerrorlist import FloodWaitError
 from telethon.custom import Dialog
+from telethon.errors.rpcerrorlist import FloodWaitError
 
 from .clicker import Clicker
-from .settings import Settings, read_settings, BOT_ID
+from .settings import BOT_ID, Settings, read_settings
 
 
 def get_sessions() -> list[Path]:
@@ -61,7 +60,7 @@ async def create_clicker_instances(
             aiohttp_session=aiohttp_session,
             user=me,
             settings=settings,
-            bot_access_hash=access_hash
+            bot_access_hash=access_hash,
         )
         clicker_instances.append(clicker)
 
@@ -69,7 +68,10 @@ async def create_clicker_instances(
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    )
 
     aiohttp_session = ClientSession()
 
@@ -78,7 +80,9 @@ async def main():
 
     settings = read_settings()
 
-    clicker_instances = await create_clicker_instances(aiohttp_session, access_hashes, settings)
+    clicker_instances = await create_clicker_instances(
+        aiohttp_session, access_hashes, settings
+    )
 
     try:
         await asyncio.gather(*[clicker.start() for clicker in clicker_instances])

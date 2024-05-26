@@ -1,5 +1,6 @@
-import yaml
 from dataclasses import dataclass
+
+import yaml
 
 BOT_ID = 7018368922
 

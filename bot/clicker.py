@@ -1,18 +1,17 @@
-import json
-import time
-import random
 import asyncio
+import json
 import logging
-
-from urllib.parse import unquote, urljoin
+import random
+import time
 from http import HTTPMethod
+from urllib.parse import unquote, urljoin
 
 from aiohttp import ClientSession
 from telethon import TelegramClient
-from telethon.tl.types import InputUser, InputPeerUser, User
 from telethon.tl.functions.messages import RequestWebViewRequest
+from telethon.tl.types import InputPeerUser, InputUser, User
 
-from .settings import Settings, BOT_ID
+from .settings import BOT_ID, Settings
 
 
 def full_name(user: User) -> str:
@@ -37,22 +36,23 @@ class Clicker:
         self._auth_token: str | None = None
         self._bot_access_hash = bot_access_hash
         self._headers = {
-            'Accept': '*/*',
-            'Accept-Language': 'ru-RU,ru;q=0.9',
-            'Connection': 'keep-alive',
-            'Content-Type': 'application/json',
-            'Origin': 'https://hamsterkombat.io/',
-            'Referer': 'https://hamsterkombat.io/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
-            'sec-ch-ua': '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
-            'sec-ch-ua-mobile': '?1',
-            'sec-ch-ua-platform': '"Android"',
+            "Accept": "*/*",
+            "Accept-Language": "ru-RU,ru;q=0.9",
+            "Connection": "keep-alive",
+            "Content-Type": "application/json",
+            "Origin": "https://hamsterkombat.io/",
+            "Referer": "https://hamsterkombat.io/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36",
+            "sec-ch-ua": '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
+            "sec-ch-ua-mobile": "?1",
+            "sec-ch-ua-platform": '"Android"',
         }
 
-        self._last_updating_time: int | None = None
+        self._last_updating_time: int = int(time.time()) - 3600
+        self._sync: dict = {}
 
         self._upgrades_for_buy: list[dict] = []
         self._balance: float = 0.0
@@ -73,14 +73,22 @@ class Clicker:
             response.url.split("tgWebAppData=")[1].split("&tgWebAppVersion")[0]
         )
 
-    async def _make_request(self, method: HTTPMethod, endpoint: str, data: dict | None = None) -> dict:
+    async def _make_request(
+        self, method: HTTPMethod, endpoint: str, data: dict | None = None
+    ) -> dict:
         response = await self.aiohttp_session.request(
             method=method,
             url=urljoin(self.base_url, endpoint),
             headers=self._headers,
             data=json.dumps(data),
         )
-        return json.loads(await response.text())
+        response_text = await response.text()
+        try:
+            return json.loads(response_text)
+        except Exception as e:
+            self.logger.error(
+                "Failed to load response, response=%s, error=%s", response_text, e
+            )
 
     async def set_auth_token(self) -> None:
         response_data = await self._make_request(
@@ -104,9 +112,7 @@ class Clicker:
 
     async def check_task(self, task_id: str) -> dict:
         return await self._make_request(
-            HTTPMethod.POST,
-            "/clicker/check-task",
-            {"taskId": task_id}
+            HTTPMethod.POST, "/clicker/check-task", {"taskId": task_id}
         )
 
     async def sync(self) -> dict | None:
@@ -117,7 +123,9 @@ class Clicker:
         )
 
         if response_data.get("found"):
-            self._last_updating_time = response_data["found"]["clickerUser"]["lastSyncUpdate"]
+            self._last_updating_time = response_data["found"]["clickerUser"][
+                "lastSyncUpdate"
+            ]
             return response_data["found"]["clickerUser"]
 
         elif clicker_user := response_data.get("clickerUser"):
@@ -137,7 +145,11 @@ class Clicker:
         response_data = await self._make_request(
             HTTPMethod.POST,
             "/clicker/tap",
-            {"count": taps, "availableTaps": available_taps, "timestamp": int(time.time())},
+            {
+                "count": taps,
+                "availableTaps": available_taps,
+                "timestamp": int(time.time()),
+            },
         )
 
         if response_data.get("found"):
@@ -161,14 +173,15 @@ class Clicker:
 
     def _set_upgrades_for_buy(self, upgrades: list[dict]) -> None:
         self._upgrades_for_buy = [
-            upgrade for upgrade in upgrades
+            upgrade
+            for upgrade in upgrades
             if upgrade["isAvailable"]
             and upgrade["isExpired"] is False
             and upgrade.get("cooldownSeconds", 0) == 0
         ]
         self._upgrades_for_buy.sort(
             key=lambda upgrade: upgrade["profitPerHourDelta"] / upgrade["price"],
-            reverse=True
+            reverse=True,
         )
 
     async def _find_and_upgrade(self) -> None:
@@ -178,7 +191,9 @@ class Clicker:
         for upgrade in self._upgrades_for_buy:
             if self._balance >= upgrade["price"]:
 
-                self.logger.info("Sleep 5 seconds before upgrade... upgrade_id=%s", upgrade["id"])
+                self.logger.info(
+                    "Sleep 5 seconds before upgrade... upgrade_id=%s", upgrade["id"]
+                )
                 await asyncio.sleep(5)
                 self.logger.info(
                     "Upgrade upgrade_id=%s, balance=%s, price=%s, profit_delta=%s",
@@ -199,10 +214,16 @@ class Clicker:
                     self._balance = clicker_user["balanceCoins"]
 
                 else:
-                    self.logger.info("Failed to upgrade, upgrade_id=%s, response=%s", upgrade["id"], response)
+                    self.logger.info(
+                        "Failed to upgrade, upgrade_id=%s, response=%s",
+                        upgrade["id"],
+                        response,
+                    )
 
                 if upgrade_for_buy := response.get("upgradesForBuy"):
-                    self._set_upgrades_for_buy(upgrade_for_buy)  # update upgrades_for_buy cycle
+                    self._set_upgrades_for_buy(
+                        upgrade_for_buy
+                    )  # update upgrades_for_buy cycle
 
             else:
                 if self.settings.sleep_for_profitable:
@@ -218,33 +239,24 @@ class Clicker:
     async def start(self) -> None:
         self.logger.info("Starting clicker...")
 
-        await self.auth()
-        sync = await self.sync()
-
-        self.logger.info(
-            "Synced, last_passive_earn=%s, earn_passive_per_hour=%s",
-            sync["lastPassiveEarn"],
-            sync["earnPassivePerHour"],
-        )
-        self._available_taps = sync["availableTaps"]
-        self._balance = sync["balanceCoins"]
-
         while True:
             try:
-                if self._last_updating_time is not None and abs(self._last_updating_time - int(time.time())) >= 3600:
+                if abs(self._last_updating_time - int(time.time())) >= 3600:
                     await self.auth()
-                    sync = await self.sync()
+                    self._sync = await self.sync()
 
                     self.logger.info(
                         "Synced, last_passive_earn=%s, earn_passive_per_hour=%s",
-                        sync["lastPassiveEarn"],
-                        sync["earnPassivePerHour"],
+                        self._sync["lastPassiveEarn"],
+                        self._sync["earnPassivePerHour"],
                     )
-                    self._available_taps = sync["availableTaps"]
-                    self._balance = sync["balanceCoins"]
+                    self._available_taps = self._sync["availableTaps"]
+                    self._balance = self._sync["balanceCoins"]
 
                 taps = random.randint(self.settings.min_taps, self.settings.max_taps)
-                if taps > self._available_taps:  # in case if available taps is less than random taps
+                if (
+                    taps > self._available_taps
+                ):  # in case if available taps is less than random taps
                     taps = self._available_taps
 
                 tap_response = await self.tap(self._available_taps, taps)
@@ -253,19 +265,30 @@ class Clicker:
                 profit = tap_response["balanceCoins"] - self._balance
                 self._balance = tap_response["balanceCoins"]
 
-                self.logger.info("Tapped, taps=%s, profit=%s, balance=%s", taps, profit, self._balance)
+                self.logger.info(
+                    "Tapped, taps=%s, profit=%s, balance=%s",
+                    taps,
+                    profit,
+                    self._balance,
+                )
 
                 if self.settings.auto_upgrade:
                     await self._find_and_upgrade()
 
                 if available_taps < self.settings.min_energy:
-                    sleep_time = sync["maxTaps"] / sync["tapsRecoverPerSec"]
-                    self.logger.info("Minimum available taps reached, available_taps=%s, sleep=%s", available_taps, sleep_time)
+                    sleep_time = self._sync["maxTaps"] / self._sync["tapsRecoverPerSec"]
+                    self.logger.info(
+                        "Minimum available taps reached, available_taps=%s, sleep=%s",
+                        available_taps,
+                        sleep_time,
+                    )
                     await asyncio.sleep(sleep_time)
 
                     continue
 
-                sleep_time = random.randint(self.settings.min_sleep_time, self.settings.max_sleep_time)
+                sleep_time = random.randint(
+                    self.settings.min_sleep_time, self.settings.max_sleep_time
+                )
 
                 self.logger.info("Sleeping... sleep_time=%s", sleep_time)
                 await asyncio.sleep(sleep_time)
