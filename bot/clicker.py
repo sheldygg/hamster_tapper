@@ -61,6 +61,9 @@ class Clicker:
         self.logger = logging.getLogger(full_name(user))
 
     async def set_web_data(self) -> None:
+        if not self.client.is_connected():
+            await self.client.connect()
+
         response = await self.client(
             RequestWebViewRequest(
                 peer=InputPeerUser(BOT_ID, self._bot_access_hash),
@@ -69,6 +72,8 @@ class Clicker:
                 url="https://hamsterkombat.io/",
             )
         )
+        await self.client.disconnect()
+
         self._web_data = unquote(
             response.url.split("tgWebAppData=")[1].split("&tgWebAppVersion")[0]
         )
